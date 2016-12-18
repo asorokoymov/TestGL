@@ -55,7 +55,7 @@ public class GUIRunner implements Runnable {
         Random random = new Random(System.currentTimeMillis());
         for (int i = 0; i < points.length; i++) {
             Point point = new Point(
-                random.nextFloat() * 10 - 5, random.nextFloat() * 10 - 5, (float)-i*2 - 2
+                random.nextFloat() * 10 - 5, random.nextFloat() * 10 - 5, (float)i*2
             );
             points[i] = point;
         }
@@ -76,12 +76,12 @@ public class GUIRunner implements Runnable {
 
         glMatrixMode(GL_PROJECTION);
         glLoadIdentity();
-        //glOrtho(0, width, height, 0, 0, -200);
+
+        //glOrtho(0, width, 0, height, 11, -11);
         glViewport(0, 0, width, height);
         GLUtil.perspectiveGL(90f, width/height, 0.1f, 200);
         glMatrixMode(GL_MODELVIEW);
         glLoadIdentity();
-        //
     }
 
     private void render(int width, int height) {
@@ -89,14 +89,23 @@ public class GUIRunner implements Runnable {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         //glTranslatef(0, 0, speed);
         glPushMatrix();
-        glBegin(GL_QUADS);
+        glBegin(GL_POINTS);
 
-        for (Point point : points) {
+/*        for (Point point : points) {
             //glVertex3d(point.x, point.y, point.z);
             glVertex3d(point.x - 1, point.y - 1, point.z);
             glVertex3d(point.x - 1, point.y + 1, point.z);
             glVertex3d(point.x + 1, point.y + 1, point.z);
             glVertex3d(point.x + 1, point.y - 1, point.z);
+        }*/
+        glColor3f(1.0f, 1.0f, 1.0f);
+
+        for (int i = 0; i < 800; i+=10) {
+            for (int j = 0; j < 600; j+=10) {
+                for (int k = 0; k < 10; k+=2) {
+                    glVertex3d(i, j, k);
+                }
+            }
         }
 
         glEnd();
