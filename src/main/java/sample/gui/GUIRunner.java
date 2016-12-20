@@ -28,7 +28,7 @@ public class GUIRunner implements Runnable {
     private IntBuffer width = BufferUtils.createIntBuffer(1);
     private IntBuffer height = BufferUtils.createIntBuffer(1);
 
-    private Point[] points = new Point[20];
+    private Point[] points = new Point[3];
 
     private Float speed = 0f;
 
@@ -55,7 +55,7 @@ public class GUIRunner implements Runnable {
         Random random = new Random(System.currentTimeMillis());
         for (int i = 0; i < points.length; i++) {
             Point point = new Point(
-                random.nextFloat() * 10 - 5, random.nextFloat() * 10 - 5, (float)i*2
+                random.nextFloat() * 4 - 2, random.nextFloat() * 4 - 2, -(float)i*2
             );
             points[i] = point;
         }
@@ -74,12 +74,11 @@ public class GUIRunner implements Runnable {
         GL.createCapabilities();
         glClearColor(0.2f, 0.2f, 0.2f, 1);
 
+        glViewport(0, 0, width, height);
         glMatrixMode(GL_PROJECTION);
         glLoadIdentity();
 
-        //glOrtho(0, width, 0, height, 11, -11);
-        glViewport(0, 0, width, height);
-        GLUtil.perspectiveGL(90f, width/height, 0.1f, 200);
+        GLUtil.perspectiveGL(90f, width/height, 1f, 20);
         glMatrixMode(GL_MODELVIEW);
         glLoadIdentity();
     }
@@ -87,26 +86,27 @@ public class GUIRunner implements Runnable {
     private void render(int width, int height) {
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        //glTranslatef(0, 0, speed);
+        glTranslatef(0, speed, 0);
         glPushMatrix();
-        glBegin(GL_POINTS);
+        glBegin(GL_QUADS);
 
-/*        for (Point point : points) {
-            //glVertex3d(point.x, point.y, point.z);
-            glVertex3d(point.x - 1, point.y - 1, point.z);
-            glVertex3d(point.x - 1, point.y + 1, point.z);
-            glVertex3d(point.x + 1, point.y + 1, point.z);
-            glVertex3d(point.x + 1, point.y - 1, point.z);
-        }*/
-        glColor3f(1.0f, 1.0f, 1.0f);
+        Float shade = 0.8f;
+        for (int y = -2; y <= 2; y++) {
+            glColor3f(1.0f, shade, shade);
+            glVertex3d(-2, y, -3);
+            glVertex3d(-2, y, -5);
+            glVertex3d(2, y, -5);
+            glVertex3d(2, y, -3);
+            shade -= 0.1f;
+        }
 
-        for (int i = 0; i < 800; i+=10) {
-            for (int j = 0; j < 600; j+=10) {
-                for (int k = 0; k < 10; k+=2) {
-                    glVertex3d(i, j, k);
+/*        for (int i = 0; i < 20; i+=1) {
+            for (int j = 0; j < 20; j+=1) {
+                for (int k = 0; k < 10; k+=1) {
+                    glVertex3d(i, j, -k);
                 }
             }
-        }
+        }*/
 
         glEnd();
 
