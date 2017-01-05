@@ -28,9 +28,11 @@ public class GUIRunner implements Runnable {
     private IntBuffer width = BufferUtils.createIntBuffer(1);
     private IntBuffer height = BufferUtils.createIntBuffer(1);
 
-    private Point[] points = new Point[3];
+    private Point[] points = new Point[3000];
 
-    private Float speed = 0f;
+    private Float xPos = 0f;
+    private Float yPos = 0f;
+    private Float zPos = 0f;
 
     @Override
     public void run() {
@@ -48,17 +50,32 @@ public class GUIRunner implements Runnable {
         }
     }
 
+    private void generatePoints(float minX, float maxX, float minY, float maxY, float minZ, float maxZ) {
+        Random random = new Random(System.currentTimeMillis());
+        for (int i = 0; i < points.length; i++) {
+            Float deltaX = maxX - minX;
+            Float xCenter = (minX + maxX) / 2;
+            Float deltaZ = maxZ - minZ;
+
+            Float x = minX + deltaX * random.nextFloat();
+            double cos = Math.abs((xCenter - x) / (deltaX / 2));
+            double acos = Math.acos(cos);
+            double zRange = Math.sin(acos) * deltaZ / 2;
+            Float z = minZ + (float)(deltaZ/2 - zRange) + (float)zRange * 2 * random.nextFloat();
+            Point point = new Point(
+                x,
+                minY + (maxY - minY) * random.nextFloat(),
+                z
+            );
+            points[i] = point;
+        }
+    }
+
     private void init(int width, int height) {
         initDisplay(width, height);
         initGL(width, height);
 
-        Random random = new Random(System.currentTimeMillis());
-        for (int i = 0; i < points.length; i++) {
-            Point point = new Point(
-                random.nextFloat() * 4 - 2, random.nextFloat() * 4 - 2, -(float)i*2
-            );
-            points[i] = point;
-        }
+        generatePoints(-4, 4, -1, 1, -16, -8);
     }
 
     private void initDisplay(int width, int height) {
@@ -78,7 +95,7 @@ public class GUIRunner implements Runnable {
         glMatrixMode(GL_PROJECTION);
         glLoadIdentity();
 
-        GLUtil.perspectiveGL(90f, width/height, 1f, 20);
+        GLUtil.perspectiveGL(90f, ((float)width/height), 1f, 20);
         glMatrixMode(GL_MODELVIEW);
         glLoadIdentity();
     }
@@ -86,39 +103,32 @@ public class GUIRunner implements Runnable {
     private void render(int width, int height) {
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glTranslatef(0, speed, 0);
-        glPushMatrix();
-        glBegin(GL_QUADS);
 
-        Float shade = 0.8f;
-        for (int y = -2; y <= 2; y++) {
-            glColor3f(1.0f, shade, shade);
-            glVertex3d(-2, y, -3);
-            glVertex3d(-2, y, -5);
-            glVertex3d(2, y, -5);
-            glVertex3d(2, y, -3);
-            shade -= 0.1f;
+        glTranslatef(0, 0, -12);
+        glRotatef(1f, 0f, 0.5f, 0);
+        glTranslatef(0, 0, 12);
+
+        glPushMatrix();
+
+        glTranslatef(0, -4, 0);
+
+        glBegin(GL_POINTS);
+        glColor3f(1.0f, 1.0f, 1.0f);
+        for (Point point : points) {
+            glVertex3d(point.x, point.y, point.z);
         }
 
-/*        for (int i = 0; i < 20; i+=1) {
-            for (int j = 0; j < 20; j+=1) {
-                for (int k = 0; k < 10; k+=1) {
-                    glVertex3d(i, j, -k);
-                }
-            }
-        }*/
-
         glEnd();
-
-
         glPopMatrix();
         glfwSwapBuffers(window);
     }
 
     private void update() {
         glfwPollEvents();
-        if (Input.keys[GLFW_KEY_SPACE]) {
-            speed += 0.001f;
+        if (Input.keys[GLFW_KEY_A]) {
+            xPos -= 0.1f;
+        } else if (Input.keys[GLFW_KEY_D]) {
+            xPos += 0.1f;
         }
     }
 
