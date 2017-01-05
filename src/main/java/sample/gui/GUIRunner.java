@@ -21,18 +21,22 @@ public class GUIRunner implements Runnable {
     private static final int DEFAULT_WIDTH = 800;
     private static final int DEFAULT_HEIGHT = 600;
     private static final int DEFAULT_FPS = 60;
+    private static final float DEFAULT_FOV = 60f;
+    private static final int DEFAULT_SENSITIVITY = 1;
 
     private long window;
     private boolean running = true;
 
+    private Camera camera;
+    private Mouse mouse;
+
     private IntBuffer width = BufferUtils.createIntBuffer(1);
     private IntBuffer height = BufferUtils.createIntBuffer(1);
 
-    private Point[] points = new Point[3000];
+    private Point[] points;
+    private Float cylinderAngle = 0f;
 
-    private Float xPos = 0f;
-    private Float yPos = 0f;
-    private Float zPos = 0f;
+    private Float a = 0f;
 
     @Override
     public void run() {
@@ -43,15 +47,16 @@ public class GUIRunner implements Runnable {
                 running = false;
 
             glfwGetWindowSize(window, width, height);
-            render(width.get(), height.get());
+            render();
             update();
-            width.flip();
-            height.flip();
+/*            width.flip();
+            height.flip();*/
         }
     }
 
-    private void generatePoints(float minX, float maxX, float minY, float maxY, float minZ, float maxZ) {
+    private Point[] generatePoints(int count, float minX, float maxX, float minY, float maxY, float minZ, float maxZ) {
         Random random = new Random(System.currentTimeMillis());
+        Point[] points = new Point[count];
         for (int i = 0; i < points.length; i++) {
             Float deltaX = maxX - minX;
             Float xCenter = (minX + maxX) / 2;
@@ -69,19 +74,22 @@ public class GUIRunner implements Runnable {
             );
             points[i] = point;
         }
+        return points;
     }
 
     private void init(int width, int height) {
         initDisplay(width, height);
         initGL(width, height);
 
-        generatePoints(-4, 4, -1, 1, -16, -8);
+        camera = new Camera();
+        mouse = Mouse.init(window);
+        points = generatePoints(3000, -4, 4, -1, 1, -16, -8);
     }
 
     private void initDisplay(int width, int height) {
         if (glfwInit() == false) {
         }
-        window = glfwCreateWindow(width, height, "Test", NULL, NULL);
+        window = glfwCreateWindow(width, height, "FPS-like test", NULL, NULL);
         glfwMakeContextCurrent(window);
         glfwSetKeyCallback(window, new Input());
         glfwShowWindow(window);
@@ -95,20 +103,33 @@ public class GUIRunner implements Runnable {
         glMatrixMode(GL_PROJECTION);
         glLoadIdentity();
 
-        GLUtil.perspectiveGL(90f, ((float)width/height), 1f, 20);
+        GLUtil.perspectiveGL(DEFAULT_FOV, ((float)width/height), 1f, 200f);
         glMatrixMode(GL_MODELVIEW);
         glLoadIdentity();
     }
 
-    private void render(int width, int height) {
+    private void render() {
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        glTranslatef(0, 0, -12);
-        glRotatef(1f, 0f, 0.5f, 0);
-        glTranslatef(0, 0, 12);
-
         glPushMatrix();
+        if ((mouse.getDelta().x != 0 || mouse.getDelta().y != 0) && mouse.isLmbPressed()) {
+            camera.angle.y += mouse.getDelta().x * 0.3f;
+            camera.angle.x += mouse.getDelta().y * 0.3f;
+            System.out.println(camera.angle);
+        }
+
+        glRotatef(camera.angle.x, 1, 0, 0);
+        glRotatef(camera.angle.y, 0, 1, 0);
+
+        glTranslatef(camera.position.x, camera.position.y, camera.position.z);
+        a += 1;
+        glPushMatrix();
+
+        glTranslatef(0, 0, -12);
+        glRotatef(cylinderAngle, 0f, 0.5f, 0);
+        cylinderAngle += 1f;
+        glTranslatef(0, 0, 12);
 
         glTranslatef(0, -4, 0);
 
@@ -120,15 +141,35 @@ public class GUIRunner implements Runnable {
 
         glEnd();
         glPopMatrix();
+        glPopMatrix();
         glfwSwapBuffers(window);
     }
 
     private void update() {
         glfwPollEvents();
+
         if (Input.keys[GLFW_KEY_A]) {
-            xPos -= 0.1f;
-        } else if (Input.keys[GLFW_KEY_D]) {
-            xPos += 0.1f;
+            camera.position.x += 0.1f;
+        }
+
+        if (Input.keys[GLFW_KEY_D]) {
+            camera.position.x -= 0.1f;
+        }
+
+        if (Input.keys[GLFW_KEY_W]) {
+            camera.position.z += 0.1f;
+        }
+
+        if (Input.keys[GLFW_KEY_S]) {
+            camera.position.z -= 0.1f;
+        }
+
+        if (Input.keys[GLFW_KEY_LEFT_CONTROL]) {
+            camera.position.y += 0.1f;
+        }
+
+        if (Input.keys[GLFW_KEY_LEFT_SHIFT]) {
+            camera.position.y -= 0.1f;
         }
     }
 
