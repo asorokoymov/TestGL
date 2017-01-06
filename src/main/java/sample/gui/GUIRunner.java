@@ -4,10 +4,14 @@ import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL;
 import sample.Input;
 import sample.Point;
+import sample.bsp.BspFile;
+import sample.bsp.lump.BSPEdge;
 import sample.bsp.primitives.Vector3f;
 import sample.util.GLUtil;
 
 import java.nio.IntBuffer;
+import java.util.List;
+import java.util.Map;
 import java.util.Random;
 
 import static org.lwjgl.glfw.GLFW.*;
@@ -22,9 +26,9 @@ public class GUIRunner implements Runnable {
     private static final int DEFAULT_WIDTH = 800;
     private static final int DEFAULT_HEIGHT = 600;
     private static final int DEFAULT_FPS = 60;
-    private static final float DEFAULT_FOV = 60f;
+    private static final float DEFAULT_FOV = 90f;
     private static final float DEFAULT_SENSITIVITY = 0.2f;
-    private static final float DEFAULT_MOVEMENT_SPEED = 0.1f;
+    private static final float DEFAULT_MOVEMENT_SPEED = 0.5f;
 
     private long window;
     private boolean running = true;
@@ -40,9 +44,14 @@ public class GUIRunner implements Runnable {
     private IntBuffer height = BufferUtils.createIntBuffer(1);
 
     private Point[] points;
+    private Map<Short, Vector3f> verticies;
+    private List<BSPEdge> edges;
     private Float cylinderAngle = 0f;
 
-    private Float a = 0f;
+    public GUIRunner(BspFile file) {
+        verticies = file.getVerticies();
+        edges = file.getEdges();
+    }
 
     @Override
     public void run() {
@@ -95,7 +104,7 @@ public class GUIRunner implements Runnable {
     private void initDisplay(int width, int height) {
         if (glfwInit() == false) {
         }
-        window = glfwCreateWindow(width, height, "FPS-like test", NULL, NULL);
+        window = glfwCreateWindow(width, height, "BSP Viewer", NULL, NULL);
         glfwMakeContextCurrent(window);
         glfwSetKeyCallback(window, new Input());
         glfwShowWindow(window);
@@ -134,20 +143,32 @@ public class GUIRunner implements Runnable {
         glRotatef(camera.getAngle().y, 0, 1, 0);
 
         glTranslatef(camera.getPosition().x, camera.getPosition().y, camera.getPosition().z);
-        a += 1;
         glPushMatrix();
 
-        glTranslatef(0, 0, -12);
+        /*glTranslatef(0, 0, -12);
         glRotatef(cylinderAngle, 0f, 0.5f, 0);
         cylinderAngle += 1f;
         glTranslatef(0, 0, 12);
 
-        glTranslatef(0, -4, 0);
+        glTranslatef(0, -4, 0);*/
 
-        glBegin(GL_POINTS);
+        glScalef(0.1f, 0.1f, 0.1f);
+        glRotatef(-90, 1f, 0f, 0f);
+
+        //glBegin(GL_POINTS);
+        glBegin(GL_LINES);
+
         glColor3f(1.0f, 1.0f, 1.0f);
-        for (Point point : points) {
+/*        for (Point point : points) {
             glVertex3d(point.x, point.y, point.z);
+        }*/
+
+        for (BSPEdge edge : edges) {
+            Vector3f fv = verticies.get(edge.fEdge);
+            Vector3f sv = verticies.get(edge.sEdge);
+
+            glVertex3d(fv.x, fv.y, fv.z);
+            glVertex3d(sv.x, sv.y, sv.z);
         }
 
         glEnd();

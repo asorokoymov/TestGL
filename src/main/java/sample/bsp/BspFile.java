@@ -3,10 +3,8 @@ package sample.bsp;
 import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import sample.bsp.lump.BSPNode;
-import sample.bsp.lump.BSPPlane;
-import sample.bsp.lump.BSPVector;
-import sample.bsp.lump.Lump;
+import sample.bsp.lump.*;
+import sample.bsp.primitives.Vector3f;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -15,7 +13,9 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Created by Flazher on 23.11.2016.
@@ -32,6 +32,8 @@ public class BspFile {
     private List<Lump> lumps;
     private List<BSPPlane> planes = new ArrayList<>();
     private List<BSPNode> bspNodes = new ArrayList<>();
+    private Map<Short, Vector3f> verticies = new HashMap<>();
+    private List<BSPEdge> edges = new ArrayList<>();
     private byte[] bspBytes;
     private ByteBuffer byteBuffer;
 
@@ -84,6 +86,8 @@ public class BspFile {
         loadEntities();
         loadBspNodes();
         loadPlanes();
+        loadVerticies();
+        loadEdges();
     }
 
     private void loadEntities() {
@@ -138,6 +142,45 @@ public class BspFile {
             Integer type = byteBuffer.getInt();
             planes.add(new BSPPlane(vector, dist, type));
         }
-        log.info("Loaded {} planes", planesCount);
+    }
+
+    private void loadVerticies() {
+        Lump verticiesLump = lumps.stream()
+            .filter(l -> l.getType().equals(LumpType.LUMP_VERTEXES))
+            .findFirst()
+            .get();
+        Integer verticiesCount = verticiesLump.getLength() / 12;
+        byteBuffer.position(verticiesLump.getbOffset());
+
+        for (short i = 0; i < verticiesCount; i++) {
+            Vector3f verticle = new Vector3f(byteBuffer.getFloat(), byteBuffer.getFloat(), byteBuffer.getFloat());
+            verticies.put(i, verticle);
+        }
+        log.info("Loaded {} verticles", verticiesCount);
+        for (Map.Entry<Short, Vector3f> verticle : verticies.entrySet()) {
+            log.info(verticle.getValue().toString());
+        }
+    }
+
+    public void loadEdges() {
+        Lump edgesLump = lumps.stream()
+            .filter(l -> l.getType().equals(LumpType.LUMP_EDGES))
+            .findFirst()
+            .get();
+        Integer edgesCount = edgesLump.getLength() / 4;
+        byteBuffer.position(edgesLump.getbOffset());
+
+        for (int i = 0; i < edgesCount; i++) {
+            BSPEdge edge = new BSPEdge(byteBuffer.getShort(), byteBuffer.getShort());
+            edges.add(edge);
+        }
+    }
+
+    public Map<Short, Vector3f> getVerticies() {
+        return verticies;
+    }
+
+    public List<BSPEdge> getEdges() {
+        return edges;
     }
 }

@@ -15,14 +15,14 @@ public class Main {
     }
 
     public Main() {
-        glThread = new Thread(new GUIRunner());
-        glThread.run();
-       /* try {
-            BspFile file = BspFile.open("src/main/resources/map.bsp");
+        try {
+            BspFile file = BspFile.open("src/main/resources/c1a0e.bsp");
             file.read();
+            glThread = new Thread(new GUIRunner(file));
+            glThread.run();
         } catch (Throwable e) {
             log.error(e.getLocalizedMessage());
-        }*/
+        }
     }
 
 }
