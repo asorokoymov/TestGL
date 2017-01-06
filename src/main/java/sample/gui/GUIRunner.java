@@ -4,6 +4,7 @@ import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL;
 import sample.Input;
 import sample.Point;
+import sample.bsp.primitives.Vector3f;
 import sample.util.GLUtil;
 
 import java.nio.IntBuffer;
@@ -22,12 +23,17 @@ public class GUIRunner implements Runnable {
     private static final int DEFAULT_HEIGHT = 600;
     private static final int DEFAULT_FPS = 60;
     private static final float DEFAULT_FOV = 60f;
-    private static final int DEFAULT_SENSITIVITY = 1;
+    private static final float DEFAULT_SENSITIVITY = 0.2f;
+    private static final float DEFAULT_MOVEMENT_SPEED = 0.1f;
 
     private long window;
     private boolean running = true;
 
     private Camera camera;
+
+    // TODO: change view angle
+    private Vector3f viewVector = new Vector3f(0f ,0f, 0f);
+
     private Mouse mouse;
 
     private IntBuffer width = BufferUtils.createIntBuffer(1);
@@ -114,15 +120,20 @@ public class GUIRunner implements Runnable {
 
         glPushMatrix();
         if ((mouse.getDelta().x != 0 || mouse.getDelta().y != 0) && mouse.isLmbPressed()) {
-            camera.angle.y += mouse.getDelta().x * 0.3f;
-            camera.angle.x += mouse.getDelta().y * 0.3f;
-            System.out.println(camera.angle);
+            camera.getAngle().y += mouse.getDelta().x * DEFAULT_SENSITIVITY;
+            camera.getAngle().x += mouse.getDelta().y * DEFAULT_SENSITIVITY;
+            viewVector = new Vector3f(
+                (float)Math.cos(Math.toRadians(camera.getAngle().x)) * (float)Math.cos(Math.toRadians(camera.getAngle().y)),
+                (float)Math.sin(Math.toRadians(camera.getAngle().x)) * (float)Math.cos(Math.toRadians(camera.getAngle().y)),
+                -(float)Math.sin(Math.toRadians(camera.getAngle().y))
+            );
+            System.out.println(viewVector);
         }
 
-        glRotatef(camera.angle.x, 1, 0, 0);
-        glRotatef(camera.angle.y, 0, 1, 0);
+        glRotatef(camera.getAngle().x, 1, 0, 0);
+        glRotatef(camera.getAngle().y, 0, 1, 0);
 
-        glTranslatef(camera.position.x, camera.position.y, camera.position.z);
+        glTranslatef(camera.getPosition().x, camera.getPosition().y, camera.getPosition().z);
         a += 1;
         glPushMatrix();
 
@@ -149,27 +160,25 @@ public class GUIRunner implements Runnable {
         glfwPollEvents();
 
         if (Input.keys[GLFW_KEY_A]) {
-            camera.position.x += 0.1f;
+            camera.getPosition().x += viewVector.x * DEFAULT_MOVEMENT_SPEED;
+            camera.getPosition().z -= viewVector.z * DEFAULT_MOVEMENT_SPEED;
         }
 
         if (Input.keys[GLFW_KEY_D]) {
-            camera.position.x -= 0.1f;
+            camera.getPosition().x -= viewVector.x * DEFAULT_MOVEMENT_SPEED;
+            camera.getPosition().z += viewVector.z * DEFAULT_MOVEMENT_SPEED;
         }
 
         if (Input.keys[GLFW_KEY_W]) {
-            camera.position.z += 0.1f;
+            camera.getPosition().x += viewVector.z * DEFAULT_MOVEMENT_SPEED;
+            camera.getPosition().y += viewVector.y * DEFAULT_MOVEMENT_SPEED;
+            camera.getPosition().z += viewVector.x * DEFAULT_MOVEMENT_SPEED;
         }
 
         if (Input.keys[GLFW_KEY_S]) {
-            camera.position.z -= 0.1f;
-        }
-
-        if (Input.keys[GLFW_KEY_LEFT_CONTROL]) {
-            camera.position.y += 0.1f;
-        }
-
-        if (Input.keys[GLFW_KEY_LEFT_SHIFT]) {
-            camera.position.y -= 0.1f;
+            camera.getPosition().x -= viewVector.z * DEFAULT_MOVEMENT_SPEED;
+            camera.getPosition().y -= viewVector.y * DEFAULT_MOVEMENT_SPEED;
+            camera.getPosition().z -= viewVector.x * DEFAULT_MOVEMENT_SPEED;
         }
     }
 
