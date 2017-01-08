@@ -34,6 +34,7 @@ public class BspFile {
     private List<BSPNode> bspNodes = new ArrayList<>();
     private Map<Short, Vector3f> verticies = new HashMap<>();
     private List<BSPEdge> edges = new ArrayList<>();
+    private List<Integer> surfedges = new ArrayList<>();
     private List<BSPFace> faces = new ArrayList<>();
     private byte[] bspBytes;
     private ByteBuffer byteBuffer;
@@ -89,6 +90,7 @@ public class BspFile {
         loadPlanes();
         loadVerticies();
         loadEdges();
+        loadSurfedges();
         loadFaces();
     }
 
@@ -174,6 +176,20 @@ public class BspFile {
             edges.add(edge);
         }
         log.info("Loaded {} edges", edgesCount);
+    }
+
+    private void loadSurfedges() {
+        Lump surfedgesLump = lumps.stream()
+            .filter(l -> l.getType().equals(LumpType.LUMP_EDGES))
+            .findFirst()
+            .get();
+        Integer surfedgesCount = surfedgesLump.getLength() / 4;
+        byteBuffer.position(surfedgesLump.getbOffset());
+
+        for (int i = 0; i < surfedgesCount; i++) {
+            surfedges.add(byteBuffer.getInt());
+        }
+        log.info("Loaded {} surfedges", surfedgesCount);
     }
 
     private void loadFaces() {
