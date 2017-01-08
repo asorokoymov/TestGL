@@ -30,10 +30,11 @@ public class BspFile {
 
     private Integer version;
     private List<Lump> lumps;
-    private List<BSPPlane> planes = new ArrayList<>();
+    private Map<Short, BSPPlane> planes = new HashMap<>();
     private List<BSPNode> bspNodes = new ArrayList<>();
     private Map<Short, Vector3f> verticies = new HashMap<>();
     private List<BSPEdge> edges = new ArrayList<>();
+    private List<BSPFace> faces = new ArrayList<>();
     private byte[] bspBytes;
     private ByteBuffer byteBuffer;
 
@@ -88,6 +89,7 @@ public class BspFile {
         loadPlanes();
         loadVerticies();
         loadEdges();
+        loadFaces();
     }
 
     private void loadEntities() {
@@ -124,7 +126,6 @@ public class BspFile {
             bspNodes.add(node);
         }
 
-        bspNodes.forEach(n -> log.info(n.toString()));
         log.info("Loaded {} nodes", nodesCount);
     }
 
@@ -136,12 +137,13 @@ public class BspFile {
 
         Integer planesCount = planesLump.getLength() / 20;
         byteBuffer.position(planesLump.getbOffset());
-        for (int i = 0; i < planesCount; i++) {
+        for (short i = 0; i < planesCount; i++) {
             BSPVector vector = new BSPVector(byteBuffer.getFloat(), byteBuffer.getFloat(), byteBuffer.getFloat());
             Float dist = byteBuffer.getFloat();
             Integer type = byteBuffer.getInt();
-            planes.add(new BSPPlane(vector, dist, type));
+            planes.put(i, new BSPPlane(vector, dist, type));
         }
+        log.info("Loaded {} planes", planesCount);
     }
 
     private void loadVerticies() {
@@ -157,12 +159,9 @@ public class BspFile {
             verticies.put(i, verticle);
         }
         log.info("Loaded {} verticles", verticiesCount);
-        for (Map.Entry<Short, Vector3f> verticle : verticies.entrySet()) {
-            log.info(verticle.getValue().toString());
-        }
     }
 
-    public void loadEdges() {
+    private void loadEdges() {
         Lump edgesLump = lumps.stream()
             .filter(l -> l.getType().equals(LumpType.LUMP_EDGES))
             .findFirst()
@@ -174,6 +173,28 @@ public class BspFile {
             BSPEdge edge = new BSPEdge(byteBuffer.getShort(), byteBuffer.getShort());
             edges.add(edge);
         }
+        log.info("Loaded {} edges", edgesCount);
+    }
+
+    private void loadFaces() {
+        Lump facesLump = lumps.stream()
+            .filter(l -> l.getType().equals(LumpType.LUMP_FACES))
+            .findFirst()
+            .get();
+
+        Integer facesCount = facesLump.getLength() / 20;
+        byteBuffer.position(facesLump.getbOffset());
+
+        for (int i = 0; i < facesCount; i++) {
+            BSPFace face = new BSPFace(
+                byteBuffer.getShort(), byteBuffer.getShort(), byteBuffer.getInt(),
+                byteBuffer.getShort(), byteBuffer.getShort()
+            );
+            byteBuffer.getInt();
+            byteBuffer.getInt();
+            faces.add(face);
+        }
+        log.info("Loaded {} faces", facesCount);
     }
 
     public Map<Short, Vector3f> getVerticies() {
@@ -182,5 +203,9 @@ public class BspFile {
 
     public List<BSPEdge> getEdges() {
         return edges;
+    }
+
+    public List<BSPFace> getFaces() {
+        return faces;
     }
 }
