@@ -16,7 +16,7 @@ public class Main {
 
     public Main() {
         try {
-            BspFile file = BspFile.open("src/main/resources/c1a0d.bsp");
+            BspFile file = BspFile.open("src/main/resources/map.bsp");
             file.read();
             glThread = new Thread(new GUIRunner(file));
             glThread.run();

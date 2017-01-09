@@ -180,14 +180,16 @@ public class BspFile {
 
     private void loadSurfedges() {
         Lump surfedgesLump = lumps.stream()
-            .filter(l -> l.getType().equals(LumpType.LUMP_EDGES))
+            .filter(l -> l.getType().equals(LumpType.LUMP_SURFEDGES))
             .findFirst()
             .get();
         Integer surfedgesCount = surfedgesLump.getLength() / 4;
         byteBuffer.position(surfedgesLump.getbOffset());
 
         for (int i = 0; i < surfedgesCount; i++) {
-            surfedges.add(byteBuffer.getInt());
+            int surfedge = byteBuffer.getInt();
+            surfedges.add(surfedge);
+            System.out.println(surfedge);
         }
         log.info("Loaded {} surfedges", surfedgesCount);
     }
@@ -223,5 +225,9 @@ public class BspFile {
 
     public List<BSPFace> getFaces() {
         return faces;
+    }
+
+    public List<Integer> getSurfedges() {
+        return surfedges;
     }
 }

@@ -3,14 +3,14 @@ package sample.gui;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL;
 import sample.Input;
-import sample.Point;
 import sample.bsp.BspFile;
 import sample.bsp.lump.BSPEdge;
+import sample.bsp.lump.BSPFace;
 import sample.bsp.primitives.Vector3f;
 import sample.util.GLUtil;
 
 import java.nio.IntBuffer;
-import java.util.List;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 
@@ -43,14 +43,11 @@ public class GUIRunner implements Runnable {
     private IntBuffer width = BufferUtils.createIntBuffer(1);
     private IntBuffer height = BufferUtils.createIntBuffer(1);
 
-    private Point[] points;
-    private Map<Short, Vector3f> verticies;
-    private List<BSPEdge> edges;
-    private Float cylinderAngle = 0f;
+    private BspFile bsp;
+    private Map<Integer, Vector3f> faceColors = new HashMap<>();
 
     public GUIRunner(BspFile file) {
-        verticies = file.getVerticies();
-        edges = file.getEdges();
+        this.bsp = file;
     }
 
     @Override
@@ -69,36 +66,12 @@ public class GUIRunner implements Runnable {
         }
     }
 
-    private Point[] generatePoints(int count, float minX, float maxX, float minY, float maxY, float minZ, float maxZ) {
-        Random random = new Random(System.currentTimeMillis());
-        Point[] points = new Point[count];
-        for (int i = 0; i < points.length; i++) {
-            Float deltaX = maxX - minX;
-            Float xCenter = (minX + maxX) / 2;
-            Float deltaZ = maxZ - minZ;
-
-            Float x = minX + deltaX * random.nextFloat();
-            double cos = Math.abs((xCenter - x) / (deltaX / 2));
-            double acos = Math.acos(cos);
-            double zRange = Math.sin(acos) * deltaZ / 2;
-            Float z = minZ + (float)(deltaZ/2 - zRange) + (float)zRange * 2 * random.nextFloat();
-            Point point = new Point(
-                x,
-                minY + (maxY - minY) * random.nextFloat(),
-                z
-            );
-            points[i] = point;
-        }
-        return points;
-    }
-
     private void init(int width, int height) {
         initDisplay(width, height);
         initGL(width, height);
 
         camera = new Camera();
         mouse = Mouse.init(window);
-        points = generatePoints(3000, -4, 4, -1, 1, -16, -8);
     }
 
     private void initDisplay(int width, int height) {
@@ -145,33 +118,44 @@ public class GUIRunner implements Runnable {
         glTranslatef(camera.getPosition().x, camera.getPosition().y, camera.getPosition().z);
         glPushMatrix();
 
-        /*glTranslatef(0, 0, -12);
-        glRotatef(cylinderAngle, 0f, 0.5f, 0);
-        cylinderAngle += 1f;
-        glTranslatef(0, 0, 12);
-
-        glTranslatef(0, -4, 0);*/
-
         glScalef(0.1f, 0.1f, 0.1f);
         glRotatef(-90, 1f, 0f, 0f);
 
-        //glBegin(GL_POINTS);
-        glBegin(GL_LINES);
+        Random random = new Random();
+        Integer edgeIndex;
+        BSPFace face;
+        BSPEdge edge;
+        boolean isFirstEdge;
+        Vector3f firstVerticle, secondVerticle;
+        for (int f = 0; f < bsp.getFaces().size(); f++) {
+            face = bsp.getFaces().get(f);
+            Vector3f color = faceColors.computeIfAbsent(f, integer -> new Vector3f(random.nextFloat(), random.nextFloat(), random.nextFloat()));
+            glColor3f(color.x, color.y, color.z);
+            glBegin(GL_POLYGON);
 
-        glColor3f(1.0f, 1.0f, 1.0f);
-/*        for (Point point : points) {
-            glVertex3d(point.x, point.y, point.z);
-        }*/
+            int firstSurfedgeIndex = face.firstEdge;
+            for (int i = 0; i < face.surfedgesCount; i++) {
+                edgeIndex = bsp.getSurfedges().get(firstSurfedgeIndex + i);
+                if (edgeIndex >= 0) {
+                    isFirstEdge = true;
+                } else {
+                    isFirstEdge = false;
+                    edgeIndex *= -1;
+                }
+                edge = bsp.getEdges().get(edgeIndex);
 
-        for (BSPEdge edge : edges) {
-            Vector3f fv = verticies.get(edge.fEdge);
-            Vector3f sv = verticies.get(edge.sEdge);
+                firstVerticle = bsp.getVerticies().get(edge.fEdge);
+                secondVerticle = bsp.getVerticies().get(edge.sEdge);
 
-            glVertex3d(fv.x, fv.y, fv.z);
-            glVertex3d(sv.x, sv.y, sv.z);
+                if (isFirstEdge) {
+                    glVertex3f(firstVerticle.x, firstVerticle.y, firstVerticle.z);
+                }
+                glVertex3f(secondVerticle.x, secondVerticle.y, secondVerticle.z);
+            }
+
+            glEnd();
         }
 
-        glEnd();
         glPopMatrix();
         glPopMatrix();
         glfwSwapBuffers(window);
