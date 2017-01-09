@@ -1,26 +1,27 @@
-package sample.bsp.primitives;
+package sample.primitives;
 
 /**
  * Created by Flazher on 06.01.2017.
  */
-public class Vector3f {
+public class Vector2f {
 
     public Float x;
     public Float y;
-    public Float z;
 
-    public Vector3f(Float x, Float y, Float z) {
+    public Vector2f(Float x, Float y) {
         this.x = x;
         this.y = y;
-        this.z = z;
+    }
+
+    public Vector2f subtract(Vector2f vector) {
+        return new Vector2f(this.x - vector.x, this.y - vector.y);
     }
 
     @Override
     public String toString() {
-        return "Vector3f{" +
+        return "Vector2f{" +
             "x=" + x +
             ", y=" + y +
-            ", z=" + z +
             '}';
     }
 }

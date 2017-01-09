@@ -5,7 +5,7 @@ public enum LumpType {
     LUMP_UNKNOWN(-1),
     LUMP_ENTITIES(0),
     LUMP_PLANES(1),
-    LUMP_TEXDATA(2),
+    LUMP_TEXTURES(2),
     LUMP_VERTEXES(3),
     LUMP_VISIBILITY(4),
     LUMP_NODES(5),

@@ -1,10 +1,12 @@
 package sample.bsp;
 
 import org.apache.commons.io.FileUtils;
+import org.lwjgl.BufferUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import sample.bsp.lump.*;
-import sample.bsp.primitives.Vector3f;
+import sample.primitives.Vector3f;
+import sample.wad.WadTexture;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -27,6 +29,7 @@ public class BspFile {
     private static final int HL_VERSION = 30;
 
     public static final int LUMPS_COUNT = 15;
+    public static final int MAX_WAD_TEXTURE_NAME_LENGTH = 16;
 
     private Integer version;
     private List<Lump> lumps;
@@ -36,6 +39,8 @@ public class BspFile {
     private List<BSPEdge> edges = new ArrayList<>();
     private List<Integer> surfedges = new ArrayList<>();
     private List<BSPFace> faces = new ArrayList<>();
+    private Map<Short, BspTextureInfo> texturesInfo = new HashMap<>();
+    private Map<Short, WadTexture> textures = new HashMap<>();
     private byte[] bspBytes;
     private ByteBuffer byteBuffer;
 
@@ -92,6 +97,7 @@ public class BspFile {
         loadEdges();
         loadSurfedges();
         loadFaces();
+        loadTextures();
     }
 
     private void loadEntities() {
@@ -187,9 +193,7 @@ public class BspFile {
         byteBuffer.position(surfedgesLump.getbOffset());
 
         for (int i = 0; i < surfedgesCount; i++) {
-            int surfedge = byteBuffer.getInt();
-            surfedges.add(surfedge);
-            System.out.println(surfedge);
+            surfedges.add(byteBuffer.getInt());
         }
         log.info("Loaded {} surfedges", surfedgesCount);
     }
@@ -215,6 +219,64 @@ public class BspFile {
         log.info("Loaded {} faces", facesCount);
     }
 
+    private void loadTextures() {
+        Lump texturesInfoLump = lumps.stream()
+            .filter(l -> l.getType().equals(LumpType.LUMP_TEXINFO))
+            .findFirst()
+            .get();
+
+        Integer texturesInfoCount = texturesInfoLump.getLength() / 40;
+        byteBuffer.position(texturesInfoLump.getbOffset());
+        for (short i = 0; i < texturesInfoCount; i++) {
+            BspTextureInfo info = new BspTextureInfo(
+                new Vector3f(byteBuffer.getFloat(), byteBuffer.getFloat(), byteBuffer.getFloat()),
+                byteBuffer.getFloat(),
+                new Vector3f(byteBuffer.getFloat(), byteBuffer.getFloat(), byteBuffer.getFloat()),
+                byteBuffer.getFloat(),
+                byteBuffer.getInt(),
+                byteBuffer.getInt()
+            );
+            texturesInfo.put(i, info);
+        }
+
+        Lump texturesLump = lumps.stream()
+            .filter(l -> l.getType().equals(LumpType.LUMP_TEXTURES))
+            .findFirst()
+            .get();
+        Integer texturesLumpOffset = texturesLump.getbOffset();
+        byteBuffer.position(texturesLumpOffset);
+        Integer texturesCount = byteBuffer.getInt();
+        List<Integer> texturesOffsets = new ArrayList<>(texturesCount);
+        for (int i = 0; i < texturesCount; i++) {
+            texturesOffsets.add(byteBuffer.getInt());
+        }
+
+        short t = 0;
+        for (Integer offset : texturesOffsets) {
+            byteBuffer.position(texturesLumpOffset + offset);
+
+            byte[] textureNameBytes = new byte[MAX_WAD_TEXTURE_NAME_LENGTH];
+            byteBuffer.get(textureNameBytes, 0, MAX_WAD_TEXTURE_NAME_LENGTH);
+            String textureName = new String(textureNameBytes);
+
+            WadTexture texture = new WadTexture(textureName, byteBuffer.getInt(), byteBuffer.getInt(),
+                new Integer[]{byteBuffer.getInt(), byteBuffer.getInt(), byteBuffer.getInt(), byteBuffer.getInt()});
+
+            Integer textureLength = texture.width * texture.height;
+            byte[] image = new byte[textureLength];
+
+            // Пока я маленький и глупый, буду брать самую жирную пикчу из мипмапа
+            byteBuffer.position(texturesLumpOffset + offset + texture.offsets[0]);
+            byteBuffer.get(image, 0, textureLength);
+            ByteBuffer buffer = BufferUtils.createByteBuffer(texture.width * texture.height);
+            buffer.put(image);
+            texture.image = buffer;
+            textures.put(t, texture);
+            t++;
+        }
+        log.info("{} textures info entities and {} BSPMIPTEX structures found", texturesInfoCount, texturesCount);
+    }
+
     public Map<Short, Vector3f> getVerticies() {
         return verticies;
     }
@@ -229,5 +291,13 @@ public class BspFile {
 
     public List<Integer> getSurfedges() {
         return surfedges;
+    }
+
+    public Map<Short, BspTextureInfo> getTexturesInfo() {
+        return texturesInfo;
+    }
+
+    public Map<Short, WadTexture> getTextures() {
+        return textures;
     }
 }

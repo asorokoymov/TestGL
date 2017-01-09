@@ -1,6 +1,6 @@
-package sample.gui;
+package sample.input;
 
-import sample.bsp.primitives.Vector2f;
+import sample.primitives.Vector2f;
 
 import static org.lwjgl.glfw.GLFW.*;
 

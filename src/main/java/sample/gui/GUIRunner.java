@@ -2,12 +2,14 @@ package sample.gui;
 
 import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL;
-import sample.Input;
+import sample.input.Input;
 import sample.bsp.BspFile;
 import sample.bsp.lump.BSPEdge;
 import sample.bsp.lump.BSPFace;
-import sample.bsp.primitives.Vector3f;
+import sample.input.Mouse;
+import sample.primitives.Vector3f;
 import sample.util.GLUtil;
+import sample.wad.WadTexture;
 
 import java.nio.IntBuffer;
 import java.util.HashMap;
@@ -45,6 +47,7 @@ public class GUIRunner implements Runnable {
 
     private BspFile bsp;
     private Map<Integer, Vector3f> faceColors = new HashMap<>();
+    private Map<Short, Integer> glTexIdByWadId = new HashMap<>();
 
     public GUIRunner(BspFile file) {
         this.bsp = file;
@@ -91,9 +94,22 @@ public class GUIRunner implements Runnable {
         glMatrixMode(GL_PROJECTION);
         glLoadIdentity();
 
+        prepareTextures();
+
         GLUtil.perspectiveGL(DEFAULT_FOV, ((float)width/height), 1f, 200f);
         glMatrixMode(GL_MODELVIEW);
         glLoadIdentity();
+    }
+
+    private void prepareTextures() {
+        for (Map.Entry<Short, WadTexture> texture : bsp.getTextures().entrySet()) {
+            int textureId = glGenTextures();
+            glBindTexture(GL_TEXTURE_2D, textureId);
+            glTexImage2D(
+                GL_TEXTURE_2D, 0, GL_RGB8, texture.getValue().width, texture.getValue().height,
+                0, GL_LUMINANCE, GL_UNSIGNED_BYTE, texture.getValue().image);
+            glTexIdByWadId.put(texture.getKey(), textureId);
+        }
     }
 
     private void render() {
@@ -109,7 +125,6 @@ public class GUIRunner implements Runnable {
                 (float)Math.sin(Math.toRadians(camera.getAngle().x)) * (float)Math.cos(Math.toRadians(camera.getAngle().y)),
                 -(float)Math.sin(Math.toRadians(camera.getAngle().y))
             );
-            System.out.println(viewVector);
         }
 
         glRotatef(camera.getAngle().x, 1, 0, 0);
@@ -128,12 +143,12 @@ public class GUIRunner implements Runnable {
         boolean isFirstEdge;
         Vector3f firstVerticle, secondVerticle;
         glEnable(GL_DEPTH_TEST);
+        glEnable (GL_TEXTURE_2D);
         for (int f = 0; f < bsp.getFaces().size(); f++) {
             face = bsp.getFaces().get(f);
             Vector3f color = faceColors.computeIfAbsent(f, integer -> new Vector3f(random.nextFloat(), random.nextFloat(), random.nextFloat()));
             glColor3f(color.x, color.y, color.z);
             glBegin(GL_POLYGON);
-
             int firstSurfedgeIndex = face.firstEdge;
             for (int i = 0; i < face.surfedgesCount; i++) {
                 edgeIndex = bsp.getSurfedges().get(firstSurfedgeIndex + i);
