@@ -127,6 +127,7 @@ public class GUIRunner implements Runnable {
         BSPEdge edge;
         boolean isFirstEdge;
         Vector3f firstVerticle, secondVerticle;
+        glEnable(GL_DEPTH_TEST);
         for (int f = 0; f < bsp.getFaces().size(); f++) {
             face = bsp.getFaces().get(f);
             Vector3f color = faceColors.computeIfAbsent(f, integer -> new Vector3f(random.nextFloat(), random.nextFloat(), random.nextFloat()));
