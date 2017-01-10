@@ -2,6 +2,7 @@ package sample.gui;
 
 import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL;
+import sample.bsp.lump.BspTextureInfo;
 import sample.input.Input;
 import sample.bsp.BspFile;
 import sample.bsp.lump.BSPEdge;
@@ -47,7 +48,7 @@ public class GUIRunner implements Runnable {
 
     private BspFile bsp;
     private Map<Integer, Vector3f> faceColors = new HashMap<>();
-    private Map<Short, Integer> glTexIdByWadId = new HashMap<>();
+    private Map<Integer, Integer> glTexIdByWadId = new HashMap<>();
 
     public GUIRunner(BspFile file) {
         this.bsp = file;
@@ -105,10 +106,14 @@ public class GUIRunner implements Runnable {
         for (Map.Entry<Short, WadTexture> texture : bsp.getTextures().entrySet()) {
             int textureId = glGenTextures();
             glBindTexture(GL_TEXTURE_2D, textureId);
+
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
             glTexImage2D(
                 GL_TEXTURE_2D, 0, GL_RGB8, texture.getValue().width, texture.getValue().height,
-                0, GL_LUMINANCE, GL_UNSIGNED_BYTE, texture.getValue().image);
-            glTexIdByWadId.put(texture.getKey(), textureId);
+                0, GL_RGB, GL_UNSIGNED_BYTE, texture.getValue().image);
+            glTexIdByWadId.put(texture.getKey().intValue(), textureId);
         }
     }
 
@@ -147,7 +152,13 @@ public class GUIRunner implements Runnable {
         for (int f = 0; f < bsp.getFaces().size(); f++) {
             face = bsp.getFaces().get(f);
             Vector3f color = faceColors.computeIfAbsent(f, integer -> new Vector3f(random.nextFloat(), random.nextFloat(), random.nextFloat()));
-            glColor3f(color.x, color.y, color.z);
+            //glColor3f(color.x, color.y, color.z);
+
+            BspTextureInfo textureInfo = bsp.getTexturesInfo().get(face.textureInfo);
+
+            Integer glTexId = glTexIdByWadId.get(textureInfo.iMiptex);
+            glBindTexture(GL_TEXTURE_2D, glTexId);
+
             glBegin(GL_POLYGON);
             int firstSurfedgeIndex = face.firstEdge;
             for (int i = 0; i < face.surfedgesCount; i++) {
@@ -164,8 +175,10 @@ public class GUIRunner implements Runnable {
                 secondVerticle = bsp.getVerticies().get(edge.sEdge);
 
                 if (isFirstEdge) {
+                    glTexCoord2f(1.0f, 0.0f);
                     glVertex3f(firstVerticle.x, firstVerticle.y, firstVerticle.z);
                 }
+                glTexCoord2f(1.0f, 0.0f);
                 glVertex3f(secondVerticle.x, secondVerticle.y, secondVerticle.z);
             }
 

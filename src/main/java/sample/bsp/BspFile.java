@@ -269,6 +269,7 @@ public class BspFile {
             byteBuffer.position(texturesLumpOffset + offset + texture.offsets[0]);
             byteBuffer.get(image, 0, textureLength);
             ByteBuffer buffer = BufferUtils.createByteBuffer(texture.width * texture.height);
+
             buffer.put(image);
             texture.image = buffer;
             textures.put(t, texture);
