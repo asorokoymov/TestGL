@@ -32,6 +32,7 @@ public class GUIRunner implements Runnable {
     private static final float DEFAULT_FOV = 90f;
     private static final float DEFAULT_SENSITIVITY = 0.2f;
     private static final float DEFAULT_MOVEMENT_SPEED = 0.5f;
+    private static final float DEFAULT_FAST_MOVEMENT_SPEED = 2.0f;
 
     private long window;
     private boolean running = true;
@@ -49,6 +50,8 @@ public class GUIRunner implements Runnable {
     private BspFile bsp;
     private Map<Integer, Vector3f> faceColors = new HashMap<>();
     private Map<Integer, Integer> glTexIdByWadId = new HashMap<>();
+
+    private Float movementSpeed = DEFAULT_MOVEMENT_SPEED;
 
     public GUIRunner(BspFile file) {
         this.bsp = file;
@@ -95,26 +98,9 @@ public class GUIRunner implements Runnable {
         glMatrixMode(GL_PROJECTION);
         glLoadIdentity();
 
-        prepareTextures();
-
         GLUtil.perspectiveGL(DEFAULT_FOV, ((float)width/height), 1f, 200f);
         glMatrixMode(GL_MODELVIEW);
         glLoadIdentity();
-    }
-
-    private void prepareTextures() {
-        for (Map.Entry<Short, WadTexture> texture : bsp.getTextures().entrySet()) {
-            int textureId = glGenTextures();
-            glBindTexture(GL_TEXTURE_2D, textureId);
-
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-
-            glTexImage2D(
-                GL_TEXTURE_2D, 0, GL_RGB8, texture.getValue().width, texture.getValue().height,
-                0, GL_RGB, GL_UNSIGNED_BYTE, texture.getValue().image);
-            glTexIdByWadId.put(texture.getKey().intValue(), textureId);
-        }
     }
 
     private void render() {
@@ -152,13 +138,7 @@ public class GUIRunner implements Runnable {
         for (int f = 0; f < bsp.getFaces().size(); f++) {
             face = bsp.getFaces().get(f);
             Vector3f color = faceColors.computeIfAbsent(f, integer -> new Vector3f(random.nextFloat(), random.nextFloat(), random.nextFloat()));
-            //glColor3f(color.x, color.y, color.z);
-
-            BspTextureInfo textureInfo = bsp.getTexturesInfo().get(face.textureInfo);
-
-            Integer glTexId = glTexIdByWadId.get(textureInfo.iMiptex);
-            glBindTexture(GL_TEXTURE_2D, glTexId);
-
+            glColor3f(color.x, color.y, color.z);
             glBegin(GL_POLYGON);
             int firstSurfedgeIndex = face.firstEdge;
             for (int i = 0; i < face.surfedgesCount; i++) {
@@ -175,10 +155,8 @@ public class GUIRunner implements Runnable {
                 secondVerticle = bsp.getVerticies().get(edge.sEdge);
 
                 if (isFirstEdge) {
-                    glTexCoord2f(1.0f, 0.0f);
                     glVertex3f(firstVerticle.x, firstVerticle.y, firstVerticle.z);
                 }
-                glTexCoord2f(1.0f, 0.0f);
                 glVertex3f(secondVerticle.x, secondVerticle.y, secondVerticle.z);
             }
 
@@ -194,25 +172,30 @@ public class GUIRunner implements Runnable {
         glfwPollEvents();
 
         if (Input.keys[GLFW_KEY_A]) {
-            camera.getPosition().x += viewVector.x * DEFAULT_MOVEMENT_SPEED;
-            camera.getPosition().z -= viewVector.z * DEFAULT_MOVEMENT_SPEED;
+            camera.getPosition().x += viewVector.x * movementSpeed;
+            camera.getPosition().z -= viewVector.z * movementSpeed;
         }
 
         if (Input.keys[GLFW_KEY_D]) {
-            camera.getPosition().x -= viewVector.x * DEFAULT_MOVEMENT_SPEED;
-            camera.getPosition().z += viewVector.z * DEFAULT_MOVEMENT_SPEED;
+            camera.getPosition().x -= viewVector.x * movementSpeed;
+            camera.getPosition().z += viewVector.z * movementSpeed;
         }
 
         if (Input.keys[GLFW_KEY_W]) {
-            camera.getPosition().x += viewVector.z * DEFAULT_MOVEMENT_SPEED;
-            camera.getPosition().y += viewVector.y * DEFAULT_MOVEMENT_SPEED;
-            camera.getPosition().z += viewVector.x * DEFAULT_MOVEMENT_SPEED;
+            camera.getPosition().x += viewVector.z * movementSpeed;
+            camera.getPosition().y += viewVector.y * movementSpeed;
+            camera.getPosition().z += viewVector.x * movementSpeed;
         }
 
         if (Input.keys[GLFW_KEY_S]) {
-            camera.getPosition().x -= viewVector.z * DEFAULT_MOVEMENT_SPEED;
-            camera.getPosition().y -= viewVector.y * DEFAULT_MOVEMENT_SPEED;
-            camera.getPosition().z -= viewVector.x * DEFAULT_MOVEMENT_SPEED;
+            camera.getPosition().x -= viewVector.z * movementSpeed;
+            camera.getPosition().y -= viewVector.y * movementSpeed;
+            camera.getPosition().z -= viewVector.x * movementSpeed;
+        }
+        if (Input.keys[GLFW_KEY_LEFT_SHIFT]) {
+            movementSpeed = DEFAULT_FAST_MOVEMENT_SPEED;
+        } else {
+            movementSpeed = DEFAULT_MOVEMENT_SPEED;
         }
     }
 

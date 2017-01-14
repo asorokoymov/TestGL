@@ -49,6 +49,7 @@ public class BspFile {
 
     public static final BspFile open(String path) throws IOException {
         BspFile file = new BspFile();
+        path = path.replace("\\", "/");
         File bspFile = new File(path);
         FileInputStream inputStream = FileUtils.openInputStream(bspFile);
 
@@ -220,6 +221,7 @@ public class BspFile {
     }
 
     private void loadTextures() {
+        /*
         Lump texturesInfoLump = lumps.stream()
             .filter(l -> l.getType().equals(LumpType.LUMP_TEXINFO))
             .findFirst()
@@ -276,6 +278,7 @@ public class BspFile {
             t++;
         }
         log.info("{} textures info entities and {} BSPMIPTEX structures found", texturesInfoCount, texturesCount);
+        */
     }
 
     public Map<Short, Vector3f> getVerticies() {

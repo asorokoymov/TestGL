@@ -16,7 +16,7 @@ public class Main {
 
     public Main() {
         try {
-            BspFile file = BspFile.open("src/main/resources/c1a0e.bsp");
+            BspFile file = BspFile.open("C:\\Program Files (x86)\\Half-Life\\valve\\maps\\c2a3.bsp");
             file.read();
             glThread = new Thread(new GUIRunner(file));
             glThread.run();
