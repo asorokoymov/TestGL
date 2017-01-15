@@ -2,16 +2,19 @@ package sample.gui;
 
 import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL;
-import sample.bsp.lump.BspTextureInfo;
-import sample.input.Input;
+import org.lwjgl.opengl.GL12;
 import sample.bsp.BspFile;
 import sample.bsp.lump.BSPEdge;
 import sample.bsp.lump.BSPFace;
+import sample.input.Input;
 import sample.input.Mouse;
 import sample.primitives.Vector3f;
 import sample.util.GLUtil;
-import sample.wad.WadTexture;
+import sample.wad.Lightmap;
+import sample.wad.TextureCoordinates;
 
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.IntBuffer;
 import java.util.HashMap;
 import java.util.Map;
@@ -50,6 +53,8 @@ public class GUIRunner implements Runnable {
     private BspFile bsp;
     private Map<Integer, Vector3f> faceColors = new HashMap<>();
     private Map<Integer, Integer> glTexIdByWadId = new HashMap<>();
+    private Map<Integer, Integer> faceGlText = new HashMap<>();
+    private Map<Integer, Map<Integer, TextureCoordinates>> faceTexCoords;
 
     private Float movementSpeed = DEFAULT_MOVEMENT_SPEED;
 
@@ -93,6 +98,8 @@ public class GUIRunner implements Runnable {
     private void initGL(int width, int height) {
         GL.createCapabilities();
         glClearColor(0.2f, 0.2f, 0.2f, 1);
+        //glEnable(GL_TEXTURE_2D);
+        prepareLightmaps();
 
         glViewport(0, 0, width, height);
         glMatrixMode(GL_PROJECTION);
@@ -101,6 +108,38 @@ public class GUIRunner implements Runnable {
         GLUtil.perspectiveGL(DEFAULT_FOV, ((float)width/height), 1f, 200f);
         glMatrixMode(GL_MODELVIEW);
         glLoadIdentity();
+    }
+
+    private void prepareLightmaps() {
+        Lightmap lightmap;
+        faceTexCoords = bsp.getFaceTexCoords();
+        for (Map.Entry<Integer, Lightmap> lightmapEntry : bsp.getLightmaps().entrySet()) {
+            lightmap = lightmapEntry.getValue();
+            int textureId = glGenTextures();
+
+            // Bind the texture
+            glBindTexture(GL_TEXTURE_2D, textureId);
+
+            // Set up Texture Filtering Parameters
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+
+            glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_REPEAT);
+            glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_REPEAT);
+
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER,
+                GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
+                GL_LINEAR);
+
+            glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+            glPixelStorei(GL_PACK_ALIGNMENT, 1);
+            glTexEnvf (GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+
+            lightmap.image.position(0);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, lightmap.width, lightmap.height, 0, GL_RGB, GL_UNSIGNED_BYTE, lightmap.image);
+            faceGlText.put(lightmapEntry.getKey(), textureId);
+        }
     }
 
     private void render() {
@@ -134,33 +173,59 @@ public class GUIRunner implements Runnable {
         boolean isFirstEdge;
         Vector3f firstVerticle, secondVerticle;
         glEnable(GL_DEPTH_TEST);
-        glEnable (GL_TEXTURE_2D);
+        glEnable(GL_TEXTURE_2D);
+        //glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL);
+
+        ////////////////////////////////////////////////////////////
+
+
+        // TUT
+
+        glBindTexture(GL_TEXTURE_2D, 2);
+        glBegin(GL_QUADS);
+        glNormal3f(0.0f, 0.0f, 1.0f);
+        glTexCoord2d(1, 1); glVertex3f(0.0f, 0.0f, 0.0f);
+        glTexCoord2d(1, 0); glVertex3f(0.0f, 100.0f, 0.0f);
+        glTexCoord2d(0, 0); glVertex3f(100.0f, 100.0f, 0.0f);
+        glTexCoord2d(0, 1); glVertex3f(100.0f, 0.0f, 0.0f);
+        glEnd();
+
+        ////////////////////////////////////////////////////////////////
+
         for (int f = 0; f < bsp.getFaces().size(); f++) {
             face = bsp.getFaces().get(f);
-            Vector3f color = faceColors.computeIfAbsent(f, integer -> new Vector3f(random.nextFloat(), random.nextFloat(), random.nextFloat()));
-            glColor3f(color.x, color.y, color.z);
-            glBegin(GL_POLYGON);
-            int firstSurfedgeIndex = face.firstEdge;
-            for (int i = 0; i < face.surfedgesCount; i++) {
-                edgeIndex = bsp.getSurfedges().get(firstSurfedgeIndex + i);
-                if (edgeIndex >= 0) {
-                    isFirstEdge = true;
-                } else {
-                    isFirstEdge = false;
-                    edgeIndex *= -1;
-                }
-                edge = bsp.getEdges().get(edgeIndex);
+            //Vector3f color = faceColors.computeIfAbsent(f, integer -> new Vector3f(random.nextFloat(), random.nextFloat(), random.nextFloat()));
+            //glColor3f(color.x, color.y, color.z);
 
-                firstVerticle = bsp.getVerticies().get(edge.fEdge);
-                secondVerticle = bsp.getVerticies().get(edge.sEdge);
+            if (faceGlText.get(f) != null) {
+                glBindTexture(GL_TEXTURE_2D, faceGlText.get(f));
+                glBegin(GL_TRIANGLE_FAN);
+                int firstSurfedgeIndex = face.firstEdge;
+                for (int i = 0; i < face.surfedgesCount; i++) {
+                    TextureCoordinates tCoordinates = faceTexCoords.get(f).get(i);
+                    edgeIndex = bsp.getSurfedges().get(firstSurfedgeIndex + i);
+                    if (edgeIndex >= 0) {
+                        isFirstEdge = true;
+                    } else {
+                        isFirstEdge = false;
+                        edgeIndex *= -1;
+                    }
+                    edge = bsp.getEdges().get(edgeIndex);
 
-                if (isFirstEdge) {
-                    glVertex3f(firstVerticle.x, firstVerticle.y, firstVerticle.z);
+                    firstVerticle = bsp.getVerticies().get(edge.fEdge);
+                    secondVerticle = bsp.getVerticies().get(edge.sEdge);
+
+                    glTexCoord2d(tCoordinates.fS, tCoordinates.fT);
+                    if (isFirstEdge) {
+                        glVertex3f(firstVerticle.x, firstVerticle.y, firstVerticle.z);
+                    } else
+                        glVertex3f(secondVerticle.x, secondVerticle.y, secondVerticle.z);
                 }
-                glVertex3f(secondVerticle.x, secondVerticle.y, secondVerticle.z);
+
+                glEnd();
+            } else {
+
             }
-
-            glEnd();
         }
 
         glPopMatrix();

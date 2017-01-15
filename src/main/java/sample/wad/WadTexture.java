@@ -6,7 +6,7 @@ import java.util.Arrays;
 /**
  * Created by Flazher on 09.01.2017.
  */
-public class WadTexture {
+public class WadTexture extends Texture {
 
     public String name;
     public Integer width;
@@ -15,9 +15,8 @@ public class WadTexture {
     public ByteBuffer image;
 
     public WadTexture(String name, Integer width, Integer height, Integer[] offsets) {
+        super(width, height);
         this.name = name;
-        this.width = width;
-        this.height = height;
         this.offsets = offsets;
     }
 

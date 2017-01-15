@@ -1,11 +1,14 @@
 package sample.bsp;
 
 import org.apache.commons.io.FileUtils;
-import org.lwjgl.BufferUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import sample.bsp.lump.*;
 import sample.primitives.Vector3f;
+import sample.util.GLUtil;
+import sample.util.MathUtil;
+import sample.wad.Lightmap;
+import sample.wad.TextureCoordinates;
 import sample.wad.WadTexture;
 
 import java.io.File;
@@ -39,6 +42,10 @@ public class BspFile {
     private List<BSPEdge> edges = new ArrayList<>();
     private List<Integer> surfedges = new ArrayList<>();
     private List<BSPFace> faces = new ArrayList<>();
+
+    // [FACE_INDEX:LIGHTMAP]
+    private Map<Integer, Lightmap> lightmaps = new HashMap<>();
+    private Map<Integer, Map<Integer, TextureCoordinates>> faceTexCoords = new HashMap<>();
     private Map<Short, BspTextureInfo> texturesInfo = new HashMap<>();
     private Map<Short, WadTexture> textures = new HashMap<>();
     private byte[] bspBytes;
@@ -99,6 +106,7 @@ public class BspFile {
         loadSurfedges();
         loadFaces();
         loadTextures();
+        loadLightmaps();
     }
 
     private void loadEntities() {
@@ -209,19 +217,113 @@ public class BspFile {
         byteBuffer.position(facesLump.getbOffset());
 
         for (int i = 0; i < facesCount; i++) {
+            short plane = byteBuffer.getShort();
+            short planeSide = byteBuffer.getShort();
+            int firstEdge = byteBuffer.getInt();
+            short surfedgesCount = byteBuffer.getShort();
+            short textureInfo = byteBuffer.getShort();
+            byte[] styles = new byte[]{byteBuffer.get(), byteBuffer.get(), byteBuffer.get(), byteBuffer.get()};
+            int lightmapOffset = byteBuffer.getInt();
             BSPFace face = new BSPFace(
-                byteBuffer.getShort(), byteBuffer.getShort(), byteBuffer.getInt(),
-                byteBuffer.getShort(), byteBuffer.getShort()
+                plane, planeSide, firstEdge,
+                surfedgesCount, textureInfo, styles, lightmapOffset
             );
-            byteBuffer.getInt();
-            byteBuffer.getInt();
             faces.add(face);
         }
         log.info("Loaded {} faces", facesCount);
     }
 
+    private void loadLightmaps() {
+        Lump lightingLump = lumps.stream()
+            .filter(l -> l.getType().equals(LumpType.LUMP_LIGHTING))
+            .findFirst()
+            .get();
+
+        BspTextureInfo tInfo;
+        BSPFace face;
+        for (int f = 0; f < faces.size(); f++) {
+            face = faces.get(f);
+            if (face.styles[0] == 0 && face.lightmapOffset >= -1) {
+                tInfo = texturesInfo.get(face.textureInfo);
+
+                float fMinU = Float.MAX_VALUE;
+                float fMinV = Float.MAX_VALUE;
+                float fMaxU = Float.MIN_VALUE;
+                float fMaxV = Float.MIN_VALUE;
+
+                Vector3f vertex;
+                for (int i = 0; i < face.surfedgesCount; i++) {
+                    int fEdge = surfedges.get(face.firstEdge + i);
+                    short vertexIndex = fEdge >= 0
+                        ? edges.get(fEdge).fEdge
+                        : edges.get(-fEdge).sEdge;
+                    vertex = verticies.get(vertexIndex);
+
+                    float fU = MathUtil.dotProduct(tInfo.vS, vertex) + tInfo.fSShift;
+                    if (fU < fMinU)
+                        fMinU = fU;
+                    if (fU > fMaxU)
+                        fMaxU = fU;
+
+                    float fV = MathUtil.dotProduct(tInfo.vT, vertex) + tInfo.fTShift;
+                    if (fV < fMinV)
+                        fMinV = fV;
+                    if (fV > fMaxV)
+                        fMaxV = fV;
+                }
+
+                float fTexMinU = (float) Math.floor(fMinU / 16.0f);
+                float fTexMinV = (float) Math.floor(fMinV / 16.0f);
+                float fTexMaxU = (float) Math.ceil(fMaxU / 16.0f);
+                float fTexMaxV = (float) Math.ceil(fMaxV / 16.0f);
+
+                int nWidth = (int) (fTexMaxU - fTexMinU) + 1;
+                int nHeight = (int) (fTexMaxV - fTexMinV) + 1;
+
+                float fMidPolyU = (fMinU + fMaxU) / 2.0f;
+                float fMidPolyV = (fMinV + fMaxV) / 2.0f;
+                float fMidTexU = (float) (nWidth) / 2.0f;
+                float fMidTexV = (float) (nHeight) / 2.0f;
+
+                for (int i = 0; i < face.surfedgesCount; i++) {
+                    int fEdge = surfedges.get(face.firstEdge + i);
+                    short vertexIndex = fEdge >= 0
+                        ? edges.get(fEdge).fEdge
+                        : edges.get(-fEdge).sEdge;
+                    vertex = verticies.get(vertexIndex);
+
+                    float fU = MathUtil.dotProduct(tInfo.vS, vertex) + tInfo.fSShift;
+                    float fV = MathUtil.dotProduct(tInfo.vT, vertex) + tInfo.fTShift;
+
+                    float fLightMapU = fMidTexU + (fU - fMidPolyU) / 16.0f;
+                    float fLightMapV = fMidTexV + (fV - fMidPolyV) / 16.0f;
+
+                    TextureCoordinates textureCoordinates = new TextureCoordinates(
+                        fLightMapU / (float) nWidth,
+                        fLightMapV / (float) nHeight
+                    );
+
+                    Map<Integer, TextureCoordinates> tc = faceTexCoords.computeIfAbsent(f, index -> new HashMap<>());
+                    tc.put(i, textureCoordinates);
+                    faceTexCoords.put(f, tc);
+                }
+
+                byteBuffer.position(lightingLump.getbOffset() + face.lightmapOffset);
+                int textureSize = nWidth * nHeight * 3;
+                byte[] textureBytes = new byte[textureSize];
+                byteBuffer.get(textureBytes, 0, textureSize);
+                ByteBuffer img = ByteBuffer.allocateDirect(textureSize).order(ByteOrder.nativeOrder());
+                img.put(textureBytes).flip();
+                Lightmap lightmap = new Lightmap(nWidth, nHeight);
+                lightmap.image = img;
+                //GLUtil.adjustToPowerOfTwo(lightmap);
+                lightmaps.put(f, lightmap);
+            }
+        }
+
+    }
+
     private void loadTextures() {
-        /*
         Lump texturesInfoLump = lumps.stream()
             .filter(l -> l.getType().equals(LumpType.LUMP_TEXINFO))
             .findFirst()
@@ -240,7 +342,7 @@ public class BspFile {
             );
             texturesInfo.put(i, info);
         }
-
+        /*
         Lump texturesLump = lumps.stream()
             .filter(l -> l.getType().equals(LumpType.LUMP_TEXTURES))
             .findFirst()
@@ -303,5 +405,13 @@ public class BspFile {
 
     public Map<Short, WadTexture> getTextures() {
         return textures;
+    }
+
+    public Map<Integer, Lightmap> getLightmaps() {
+        return lightmaps;
+    }
+
+    public Map<Integer, Map<Integer, TextureCoordinates>> getFaceTexCoords() {
+        return faceTexCoords;
     }
 }
