@@ -174,28 +174,9 @@ public class GUIRunner implements Runnable {
         Vector3f firstVerticle, secondVerticle;
         glEnable(GL_DEPTH_TEST);
         glEnable(GL_TEXTURE_2D);
-        //glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL);
-
-        ////////////////////////////////////////////////////////////
-
-
-        // TUT
-
-        glBindTexture(GL_TEXTURE_2D, 2);
-        glBegin(GL_QUADS);
-        glNormal3f(0.0f, 0.0f, 1.0f);
-        glTexCoord2d(1, 1); glVertex3f(0.0f, 0.0f, 0.0f);
-        glTexCoord2d(1, 0); glVertex3f(0.0f, 100.0f, 0.0f);
-        glTexCoord2d(0, 0); glVertex3f(100.0f, 100.0f, 0.0f);
-        glTexCoord2d(0, 1); glVertex3f(100.0f, 0.0f, 0.0f);
-        glEnd();
-
-        ////////////////////////////////////////////////////////////////
 
         for (int f = 0; f < bsp.getFaces().size(); f++) {
             face = bsp.getFaces().get(f);
-            //Vector3f color = faceColors.computeIfAbsent(f, integer -> new Vector3f(random.nextFloat(), random.nextFloat(), random.nextFloat()));
-            //glColor3f(color.x, color.y, color.z);
 
             if (faceGlText.get(f) != null) {
                 glBindTexture(GL_TEXTURE_2D, faceGlText.get(f));

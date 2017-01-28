@@ -248,8 +248,8 @@ public class BspFile {
 
                 float fMinU = Float.MAX_VALUE;
                 float fMinV = Float.MAX_VALUE;
-                float fMaxU = Float.MIN_VALUE;
-                float fMaxV = Float.MIN_VALUE;
+                float fMaxU = -Float.MAX_VALUE;
+                float fMaxV = -Float.MAX_VALUE;
 
                 Vector3f vertex;
                 for (int i = 0; i < face.surfedgesCount; i++) {
